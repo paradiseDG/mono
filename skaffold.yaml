@@ -1,0 +1,44 @@
+apiVersion: skaffold/v1
+kind: Config
+build:
+  tagPolicy:
+    envTemplate:
+      template: "{{.IMAGE_NAME}}:local"
+  artifacts:
+    - image: registry.gitlab.com/join-up/web/monoupyapp
+      jib:
+        args:
+          - -Djib.to.auth.username=jpiraguha -Djib.to.auth.password=$GITLAB_PERSONAL_TOKEN
+deploy:
+  kubectl:
+    manifests:
+      - ./deploy/*
+
+#  helm:
+#    releases:
+#      - name: monoUpyApp
+#        chartPath: java-spring-mongo-chart
+#        #wait: true
+#        valuesFiles:
+#          - java-spring-mongo-chart/values.yaml
+##        values:
+##          appName: monoupyapp
+##          path: join-up/web
+##          image:
+##            registry: registry.gitlab.com
+#          #recreatePods will pass --recreate-pods to helm upgrade
+#          #recreatePods: true
+#          #overrides builds an override values.yaml file to run with the helm deploy
+#        overrides:
+#          image:
+#            version: local
+#
+#        packaged:    #  	parameters for packaging helm chart (helm package).
+#          version: 0.0.1    #  	sets the version on the chart to this semver version.
+#          appVersion: 0.0.1
+#          #setValues get appended to the helm deploy with --set.
+#          #setValues:
+#          #some.key: someValue
+##gradle jib -Djib.to.image="registry.gitlab.com/join-up/web/monoupyapp:local" \
+##          -Djib.to.auth.username="jpiraguha"  \
+##          -Djib.to.auth.password="$GITLAB_PERSONAL_TOKEN"

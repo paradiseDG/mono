@@ -1,0 +1,138 @@
+---
+# Source: java-spring-mongo-chart/templates/config.yaml
+apiVersion: v1
+data:
+  application-kube.yml: |-
+    spring:
+      profiles:
+        active: kube
+        include: default
+      data:
+        mongodb:
+          uri: mongodb+srv://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_CLUSTER_ADDRESS}
+          database: monoupyapp
+    graphql:
+      packages:
+        - "com.joinupy.web.mono"
+    upy:
+      security:
+        # CORS is only enabled by default with the "dev" profile, so BrowserSync can access the API
+        cors:
+          allowed-origins: '*'
+          allowed-methods: '*'
+          allowed-headers: '*'
+          exposed-headers: 'Authorization,Link,X-Total-Count'
+          allow-credentials: true
+          max-age: 1800
+        authentication:
+          jwt:
+            # This token must be encoded using Base64 and be at least 256 bits long (you can type `openssl rand -base64 64` on your command line to generate a 512 bits one)
+            base64-secret: M2MxNTg4ZDYwZjQ5MDQyMGFiNmIzZmRmYjVmMWYxNjllYTk2Y2Y3MGYyNjUwYTVmOThhYmVlNDNkMjY4OTEwMzA0ZmYwNjA2NGI0Njc5YWJhZDJkNzI3OWE5ZTc5NWQwZGU5ZTg2Y2M5ZWU5NjEwYjJhMzQ0YzJjNjU1NTUxYzk=
+            # Token is valid 24 hours
+            token-validity-in-seconds: 86400
+            token-validity-in-seconds-for-remember-me: 2592000
+kind: ConfigMap
+metadata:
+  labels:
+    name: monoupyapp-config-prop
+  name: monoupyapp-config-prop
+  namespace: app
+---
+# Source: java-spring-mongo-chart/templates/dep.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: app
+  labels:
+    app: monoupyapp
+  name: monoupyapp
+spec:
+  ports:
+    - port: 8080
+      name: high
+      protocol: TCP
+      targetPort: 8080
+    - port: 80
+      name: low
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: monoupyapp
+---
+# Source: java-spring-mongo-chart/templates/dep.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: monoupyapp
+  namespace: kong
+spec:
+  type: ExternalName
+  externalName: monoupyapp.app.svc.cluster.local
+  ports:
+    - port: 8080
+      name: high
+      protocol: TCP
+      targetPort: 8080
+    - port: 80
+      name: low
+      protocol: TCP
+      targetPort: 8080
+---
+# Source: java-spring-mongo-chart/templates/dep.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monoupyapp
+  namespace: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monoupyapp
+  template:
+    metadata:
+      labels:
+        app: monoupyapp
+      name: monoupyapp
+    spec:
+      containers:
+        - name: monoupyapp
+          args:
+            - --spring.config.additional-location=/application-kube.yml
+            - --spring.profiles.active=default,kube
+          env:
+          - name: MONGO_CLUSTER_ADDRESS
+            value: upy-dev-vupgk.mongodb.net/test?retryWrites=true&w=majority
+          - name: MONGO_USER
+            valueFrom:
+              secretKeyRef:
+                key: mongo.user
+                name: mongo-local
+          - name: MONGO_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mongo.password
+                name: mongo-local
+          # registry.gitlab.com/join-up/cross-cutting/health/server-mongo-health-check:master
+          image: "registry.gitlab.com/join-up/web/monoupyapp:local"
+          imagePullPolicy: Always
+#          fixme: readinessProbe:
+#          fixme: livenessProbe:
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /application-kube.yml
+              name: application-kube
+              readOnly: true
+              subPath: application-kube.yml
+      imagePullSecrets:
+        - name: docker-registery-secret
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: monoupyapp-config-prop
+          name: application-kube

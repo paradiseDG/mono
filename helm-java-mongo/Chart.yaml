@@ -1,0 +1,8 @@
+apiVersion: v1
+name: java-spring-mongo-chart
+version: 0.0.1
+description: Sping application using mongodb
+maintainers: # (optional)
+  - name: Iraguha Jean-Paul
+    email: jean-paul.iraguha@join-upy.com
+appVersion: local

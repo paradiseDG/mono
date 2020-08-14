@@ -1,0 +1,6 @@
+appName: monoupyapp
+path: join-up/web
+namespace: app
+image:
+  registry: registry.gitlab.com
+  version: local

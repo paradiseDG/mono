@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: playgroud-monoupyapp
+  namespace: kong
+  annotations:
+    configuration.konghq.com: playgroud-proxy-config
+spec:
+  type: ExternalName
+  externalName: monoupyapp.app.svc.cluster.local
+  ports:
+    - port: 8080
+      name: high
+      protocol: TCP
+      targetPort: 8080
+    - port: 80
+      name: low
+      protocol: TCP
+      targetPort: 8080

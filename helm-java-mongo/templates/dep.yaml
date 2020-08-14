@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appName }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+      name: {{ .Values.appName }}
+    spec:
+      containers:
+        - name: {{ .Values.appName }}
+          args:
+            - --spring.config.additional-location=/application-kube.yml
+            - --spring.profiles.active=default,kube
+          env:
+          - name: MONGO_CLUSTER_ADDRESS
+            value: upy-dev-vupgk.mongodb.net/test?retryWrites=true&w=majority
+          - name: MONGO_USER
+            valueFrom:
+              secretKeyRef:
+                key: mongo.user
+                name: mongo-local
+          - name: MONGO_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: mongo.password
+                name: mongo-local
+          # registry.gitlab.com/join-up/cross-cutting/health/server-mongo-health-check:master
+          image: "{{ .Values.image.registry }}/{{ .Values.path }}/{{ .Values.appName }}:{{ .Values.image.version }}"
+          imagePullPolicy: Always
+#          fixme: readinessProbe:
+#          fixme: livenessProbe:
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /application-kube.yml
+              name: application-kube
+              readOnly: true
+              subPath: application-kube.yml
+      imagePullSecrets:
+        - name: docker-registery-secret
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: {{ .Values.appName }}-config-prop
+          name: application-kube
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+  name: {{ .Values.appName }}
+spec:
+  ports:
+    - port: 8080
+      name: high
+      protocol: TCP
+      targetPort: 8080
+    - port: 80
+      name: low
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: {{ .Values.appName }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appName }}
+  namespace: kong
+spec:
+  type: ExternalName
+  externalName: {{ .Values.appName }}.{{ .Values.namespace }}.svc.cluster.local
+  ports:
+    - port: 8080
+      name: high
+      protocol: TCP
+      targetPort: 8080
+    - port: 80
+      name: low
+      protocol: TCP
+      targetPort: 8080

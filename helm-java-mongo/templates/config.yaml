@@ -1,0 +1,40 @@
+apiVersion: v1
+data:
+  application-kube.yml: |-
+    spring:
+      profiles:
+        active: kube
+        include: default
+      data:
+        mongodb:
+          uri: mongodb+srv://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_CLUSTER_ADDRESS}
+          database: {{ .Values.appName }}
+    graphql:
+      packages:
+        - "com.joinupy.web.mono"
+    upy:
+      security:
+        # CORS is only enabled by default with the "dev" profile, so BrowserSync can access the API
+        cors:
+          allowed-origins: '*'
+          allowed-methods: '*'
+          allowed-headers: '*'
+          exposed-headers: 'Authorization,Link,X-Total-Count'
+          allow-credentials: true
+          max-age: 1800
+        authentication:
+          jwt:
+            # This token must be encoded using Base64 and be at least 256 bits long (you can type `openssl rand -base64 64` on your command line to generate a 512 bits one)
+            base64-secret: M2MxNTg4ZDYwZjQ5MDQyMGFiNmIzZmRmYjVmMWYxNjllYTk2Y2Y3MGYyNjUwYTVmOThhYmVlNDNkMjY4OTEwMzA0ZmYwNjA2NGI0Njc5YWJhZDJkNzI3OWE5ZTc5NWQwZGU5ZTg2Y2M5ZWU5NjEwYjJhMzQ0YzJjNjU1NTUxYzk=
+            # Token is valid 24 hours
+            token-validity-in-seconds: 86400
+            token-validity-in-seconds-for-remember-me: 2592000
+    logging:
+      level:
+        root: INFO
+kind: ConfigMap
+metadata:
+  labels:
+    name: {{ .Values.appName }}-config-prop
+  name: {{ .Values.appName }}-config-prop
+  namespace: {{ .Values.namespace }}
